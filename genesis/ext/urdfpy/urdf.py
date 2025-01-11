@@ -2571,6 +2571,169 @@ class Link(URDFType):
         cpy._collision_mesh = cm
         return cpy
 
+class Sensor(URDFType):
+    """A link of a sensor object.
+
+    Parameters
+    ----------
+    name : str
+        The name of the link.
+    inertial : :class:`.Inertial`, optional
+        The inertial properties of the link.
+    visuals : list of :class:`.Visual`, optional
+        The visual properties of the link.
+    collsions : list of :class:`.Collision`, optional
+        The collision properties of the link.
+    """
+
+    _ATTRIBS = {
+        "name": (str, True),
+        "resolution": (str, False),
+        "fov": (float, False),
+        "sensortype": (str, False),
+    }
+    _ELEMENTS = {
+        "inertial": (Inertial, False, False),
+        "visuals": (Visual, False, True),
+        "collisions": (Collision, False, True),
+    }
+    _TAG = "sensor"
+
+    def __init__(self, name, inertial, visuals, collisions, resolution, fov, sensortype):
+        self.name = name
+        self.inertial = inertial
+        self.visuals = visuals
+        self.collisions = collisions
+        resolution = resolution.split(" ")
+        self.resolution = [int(resolution[0]), int(resolution[1])]
+        self.fov = fov
+        self.sensortype = sensortype
+
+        self._collision_mesh = None
+
+    @property
+    def name(self):
+        """str : The name of this link."""
+        return self._name
+
+    @name.setter
+    def name(self, value):
+        self._name = str(value)
+
+    @property
+    def inertial(self):
+        """:class:`.Inertial` : Inertial properties of the link."""
+        return self._inertial
+
+    @inertial.setter
+    def inertial(self, value):
+        if value is not None and not isinstance(value, Inertial):
+            raise TypeError("Expected Inertial object")
+
+        # # Set default inertial
+        # if value is None:
+        #     value = Inertial(mass=1.0, inertia=np.eye(3))
+
+        self._inertial = value
+
+    @property
+    def visuals(self):
+        """list of :class:`.Visual` : The visual properties of this link."""
+        return self._visuals
+
+    @visuals.setter
+    def visuals(self, value):
+        if value is None:
+            value = []
+        else:
+            value = list(value)
+            for v in value:
+                if not isinstance(v, Visual):
+                    raise ValueError("Expected list of Visual objects")
+        self._visuals = value
+
+    @property
+    def collisions(self):
+        """list of :class:`.Collision` : The collision properties of this link."""
+        return self._collisions
+
+    @collisions.setter
+    def collisions(self, value):
+        if value is None:
+            value = []
+        else:
+            value = list(value)
+            for v in value:
+                if not isinstance(v, Collision):
+                    raise ValueError("Expected list of Collision objects")
+        self._collisions = value
+
+    @property
+    def collision_mesh(self):
+        """:class:`~trimesh.base.Trimesh` : A single collision mesh for
+        the link, specified in the link frame, or None if there isn't one.
+        """
+        if len(self.collisions) == 0:
+            return None
+        if self._collision_mesh is None:
+            meshes = []
+            for c in self.collisions:
+                for m in c.geometry.meshes:
+                    m = m.copy()
+                    pose = c.origin
+                    if c.geometry.mesh is not None:
+                        if c.geometry.mesh.scale is not None:
+                            S = np.eye(4)
+                            S[:3, :3] = np.diag(c.geometry.mesh.scale)
+                            pose = pose.dot(S)
+                    m.apply_transform(pose)
+                    meshes.append(m)
+            if len(meshes) == 0:
+                return None
+            self._collision_mesh = meshes[0] + meshes[1:]
+        return self._collision_mesh
+
+    def copy(self, prefix="", scale=None, collision_only=False):
+        """Create a deep copy of the link.
+
+        Parameters
+        ----------
+        prefix : str
+            A prefix to apply to all joint and link names.
+
+        Returns
+        -------
+        link : :class:`.Link`
+            A deep copy of the Link.
+        """
+        inertial = self.inertial.copy() if self.inertial is not None else None
+        cm = self._collision_mesh
+        if scale is not None:
+            if self.collision_mesh is not None and self.inertial is not None:
+                sm = np.eye(4)
+                if not isinstance(scale, (list, np.ndarray)):
+                    scale = np.repeat(scale, 3)
+                sm[:3, :3] = np.diag(scale)
+                cm = self.collision_mesh.copy()
+                cm.density = self.inertial.mass / cm.volume
+                cm.apply_transform(sm)
+                cmm = np.eye(4)
+                cmm[:3, 3] = cm.center_mass
+                inertial = Inertial(mass=cm.mass, inertia=cm.moment_inertia, origin=cmm)
+
+        visuals = None
+        if not collision_only:
+            visuals = [v.copy(prefix=prefix, scale=scale) for v in self.visuals]
+
+        cpy = Link(
+            name="{}{}".format(prefix, self.name),
+            inertial=inertial,
+            visuals=visuals,
+            collisions=[v.copy(prefix=prefix, scale=scale) for v in self.collisions],
+        )
+        cpy._collision_mesh = cm
+        return cpy
+
 
 class URDF(URDFType):
     """The top-level URDF specification.
@@ -2600,15 +2763,18 @@ class URDF(URDFType):
     }
     _ELEMENTS = {
         "links": (Link, True, True),
+        "sensors": (Sensor, False, True),
         "joints": (Joint, False, True),
         "transmissions": (Transmission, False, True),
         "materials": (Material, False, True),
     }
     _TAG = "robot"
 
-    def __init__(self, name, links, joints=None, transmissions=None, materials=None, other_xml=None):
+    def __init__(self, name, links, sensors=None, joints=None, transmissions=None, materials=None, other_xml=None):
         if joints is None:
             joints = []
+        if sensors is None:
+            sensors = []
         if transmissions is None:
             transmissions = []
         if materials is None:
@@ -2619,6 +2785,7 @@ class URDF(URDFType):
 
         # No setters for these
         self._links = list(links)
+        self._sensors = list(sensors)
         self._joints = list(joints)
         self._transmissions = list(transmissions)
         self._materials = list(materials)
@@ -3827,8 +3994,9 @@ class URDF(URDFType):
 
     @classmethod
     def _from_xml(cls, node, path):
-        valid_tags = set(["joint", "link", "transmission", "material"])
+        valid_tags = set(["joint", "link", "transmission", "material", "sensors"])
         kwargs = cls._parse(node, path)
+        kwargs["links"].extend(kwargs["sensors"])
 
         extra_xml_node = ET.Element("extra")
         for child in node:

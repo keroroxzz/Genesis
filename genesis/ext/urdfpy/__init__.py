@@ -20,6 +20,7 @@ from .urdf import (
     Transmission,
     Joint,
     Link,
+    Sensor,
     URDF,
 )
 from .utils import rpy_to_matrix, matrix_to_rpy, xyz_rpy_to_matrix, matrix_to_xyz_rpy
@@ -46,6 +47,7 @@ __all__ = [
     "TransmissionJoint",
     "Transmission",
     "Joint",
+    "Sensor",
     "Link",
     "URDF",
     "rpy_to_matrix",

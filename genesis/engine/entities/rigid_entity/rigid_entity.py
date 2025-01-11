@@ -14,6 +14,7 @@ from genesis.utils.misc import tensor_to_array
 from ..base_entity import Entity
 from .rigid_joint import RigidJoint
 from .rigid_link import RigidLink
+from .sensor_link import SensorLink
 
 
 @ti.data_oriented
@@ -69,6 +70,7 @@ class RigidEntity(Entity):
 
     def _load_model(self):
         self._links = gs.List()
+        self._sensors = gs.List()
         self._joints = gs.List()
 
         if isinstance(self._morph, gs.morphs.Mesh):
@@ -405,17 +407,33 @@ class RigidEntity(Entity):
             self._add_by_info(l_info, j_info, l_info["g_infos"], morph, surface)
 
     def _add_by_info(self, l_info, j_info, g_infos, morph, surface):
-        link = self._add_link(
-            name=l_info["name"],
-            pos=l_info["pos"],
-            quat=l_info["quat"],
-            inertial_pos=l_info["inertial_pos"] if not morph.recompute_inertia else None,
-            inertial_quat=l_info["inertial_quat"],
-            inertial_i=l_info["inertial_i"] if not morph.recompute_inertia else None,
-            inertial_mass=l_info["inertial_mass"] if not morph.recompute_inertia else None,
-            parent_idx=l_info["parent_idx"] + self._link_start if l_info["parent_idx"] >= 0 else l_info["parent_idx"],
-            invweight=l_info["invweight"],
-        )
+        if l_info["is_sensor"]:
+            link = self._add_sensor(
+                resolution=l_info["resolution"],
+                type=l_info["sensortype"],
+                fov=l_info["fov"],
+                name=l_info["name"],
+                pos=l_info["pos"],
+                quat=l_info["quat"],
+                inertial_pos=l_info["inertial_pos"] if not morph.recompute_inertia else None,
+                inertial_quat=l_info["inertial_quat"],
+                inertial_i=l_info["inertial_i"] if not morph.recompute_inertia else None,
+                inertial_mass=l_info["inertial_mass"] if not morph.recompute_inertia else None,
+                parent_idx=l_info["parent_idx"] + self._link_start if l_info["parent_idx"] >= 0 else l_info["parent_idx"],
+                invweight=l_info["invweight"],
+            )
+        else:
+            link = self._add_link(
+                name=l_info["name"],
+                pos=l_info["pos"],
+                quat=l_info["quat"],
+                inertial_pos=l_info["inertial_pos"] if not morph.recompute_inertia else None,
+                inertial_quat=l_info["inertial_quat"],
+                inertial_i=l_info["inertial_i"] if not morph.recompute_inertia else None,
+                inertial_mass=l_info["inertial_mass"] if not morph.recompute_inertia else None,
+                parent_idx=l_info["parent_idx"] + self._link_start if l_info["parent_idx"] >= 0 else l_info["parent_idx"],
+                invweight=l_info["invweight"],
+            )
         self._add_joint(
             name=j_info["name"],
             n_qs=j_info["n_qs"],
@@ -527,6 +545,51 @@ class RigidEntity(Entity):
             dtype=gs.ti_float, shape=self._solver._batch_shape((self.n_dofs, self._IK_error_dim))
         )
 
+    def _add_sensor(
+        self,
+        resolution,
+        type,
+        fov,
+        name,
+        pos,
+        quat,
+        inertial_pos,
+        inertial_quat,
+        inertial_i,
+        inertial_mass,
+        parent_idx,
+        invweight,
+    ):
+        link = SensorLink(
+            resolution=resolution,
+            type=type,
+            fov=fov,
+            scene=self._scene,
+            entity=self,
+            name=name,
+            idx=self.n_links + self._link_start,
+            geom_start=self.n_geoms + self._geom_start,
+            cell_start=self.n_cells + self._cell_start,
+            vert_start=self.n_verts + self._vert_start,
+            face_start=self.n_faces + self._face_start,
+            edge_start=self.n_edges + self._edge_start,
+            vgeom_start=self.n_vgeoms + self._vgeom_start,
+            vvert_start=self.n_vverts + self._vvert_start,
+            vface_start=self.n_vfaces + self._vface_start,
+            pos=pos,
+            quat=quat,
+            inertial_pos=inertial_pos,
+            inertial_quat=inertial_quat,
+            inertial_i=inertial_i,
+            inertial_mass=inertial_mass,
+            parent_idx=parent_idx,
+            invweight=invweight,
+            visualize_contact=self.visualize_contact,
+        )
+        self._links.append(link)
+        self._sensors.append(link)
+        return link
+    
     def _add_link(
         self,
         name,
@@ -1434,6 +1497,10 @@ class RigidEntity(Entity):
     # ------------------------------------------------------------------------------------
     # ---------------------------------- control & io ------------------------------------
     # ------------------------------------------------------------------------------------
+
+    def render_sensors(self):
+        for sensor in self._sensors:
+            sensor.render()
 
     def get_joint(self, name=None, uid=None):
         """

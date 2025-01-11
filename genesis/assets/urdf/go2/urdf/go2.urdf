@@ -1184,23 +1184,23 @@ Stephen Brawner (brawner@gmail.com)
     <axis
       xyz="0 0 0" />
   </joint>
-  <link
-    name="radar">
+  <sensor
+    name="radar" resolution="128 128" fov="60.0" sensortype="rgb">
     <inertial>
       <origin
         xyz="0 0 0"
         rpy="0 0 0" />
       <mass
-        value="0" />
+        value="0.1" />
       <inertia
-        ixx="0"
-        ixy="0"
-        ixz="0"
-        iyy="0"
-        iyz="0"
-        izz="0" />
+        ixx="0.000001"
+        ixy="0.000001"
+        ixz="0.000001"
+        iyy="0.000001"
+        iyz="0.000001"
+        izz="0.000001" />
     </inertial>
-  </link>
+  </sensor>
   <joint
     name="radar_joint"
     type="fixed">
