@@ -4,7 +4,7 @@ import torch
 import genesis as gs
 import genesis.utils.geom as gu
 from genesis.repr_base import RBC
-
+import genesis.ext.ros2.ros_core as ROS
 
 @ti.data_oriented
 class RigidJoint(RBC):
@@ -144,6 +144,24 @@ class RigidJoint(RBC):
 
             for i in ti.static(range(4)):
                 tensor[i_b, i] = joint_quat[i]
+
+    def _publish_tf(self, msg_time=None):
+
+        for tf in self.subtfs:
+            tf.publish(msg_time)
+
+        if not self.is_pub_tf:
+            return
+
+        if msg_time is None:
+            msg_time=ROS.rclpy.Time.now()
+
+        # translate the position and orientation to desired format
+        position, q_coeff = self.getPose(inverse=self.inverse_parent_frame)
+        if self.inverse_parent_frame:
+            ROS.ros2_tf_broadcaster.sendTransform(position, q_coeff, msg_time, self.parent_frame, self.frame)
+        else:
+            ROS.ros2_tf_broadcaster.sendTransform(position, q_coeff, msg_time, self.frame, self.parent_frame)
 
     # ------------------------------------------------------------------------------------
     # ----------------------------------- properties -------------------------------------

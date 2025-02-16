@@ -1249,6 +1249,128 @@ class Inertial(URDFType):
 
 
 ###############################################################################
+# Sensor Spec types
+###############################################################################
+
+class SensorSpec(URDFType):
+    """The spec properties of a sensor.
+
+    Parameters
+    ----------
+    type : str
+        The type of the sensor.
+    topic : str
+        The topic of the sensor for ROS.
+    resolution : (2) float
+        The [2] int array of resolution.
+    fov : float
+        The [2] int array of field of view of the sensor.
+    """
+
+    _TAG = "sensor_spec"
+
+    def __init__(self, type, topic, resolution, fov):
+        self.type = type
+        self.topic = topic
+        self.resolution = resolution
+        self.fov = fov
+
+    @property
+    def type(self):
+        """str : The type of the sensor."""
+        return self._type
+
+    @type.setter
+    def type(self, value):
+        self._type = str(value)
+
+    @property
+    def topic(self):
+        """str : The type of the sensor."""
+        return self._topic
+
+    @topic.setter
+    def topic(self, value):
+        self._topic = str(value)
+
+    @property
+    def resolution(self):
+        """(2) int : The resolution of the sensor."""
+        return self._resolution
+
+    @resolution.setter
+    def resolution(self, value):
+        value = np.asanyarray(value).astype(np.int32)
+        if value.shape != (2,):
+            raise ValueError("Resolution must be a (2,) int")
+        self._resolution = value
+
+    @property
+    def fov(self):
+        """(2,) float : The field of view of the sensor."""
+        return self._fov
+
+    @fov.setter
+    def fov(self, value):
+        value = np.asanyarray(value).astype(np.float32)
+        if value.shape != (2,):
+            raise ValueError("Fov must be a (2,) float32")
+        self._fov = value
+
+    @classmethod
+    def _from_xml(cls, node, path):
+        type = node.attrib["type"]
+        topic = str(node.attrib["topic"])
+        res_node = node.find("resolution")
+        resolution = np.array([int(res_node.attrib["width"]), int(res_node.attrib["height"])], dtype=np.int32)
+        fov_node = node.find("fov")
+        fov = np.array([float(fov_node.attrib["hfov"]), float(fov_node.attrib["vfov"])], dtype=np.float32)
+        return SensorSpec(type=type, resolution=resolution, topic=topic, fov=fov)
+
+    def _to_xml(self, parent, path):
+        # node = ET.Element("inertial")
+        # node.append(unparse_origin(self.origin))
+        # mass = ET.Element("mass")
+        # mass.attrib["value"] = str(self.mass)
+        # node.append(mass)
+        # inertia = ET.Element("inertia")
+        # inertia.attrib["ixx"] = str(self.inertia[0, 0])
+        # inertia.attrib["ixy"] = str(self.inertia[0, 1])
+        # inertia.attrib["ixz"] = str(self.inertia[0, 2])
+        # inertia.attrib["iyy"] = str(self.inertia[1, 1])
+        # inertia.attrib["iyz"] = str(self.inertia[1, 2])
+        # inertia.attrib["izz"] = str(self.inertia[2, 2])
+        # node.append(inertia)
+        return node
+
+    def copy(self, prefix="", mass=None, origin=None, inertia=None):
+        """Create a deep copy of the visual with the prefix applied to all names.
+
+        Parameters
+        ----------
+        prefix : str
+            A prefix to apply to all joint and link names.
+
+        Returns
+        -------
+        :class:`.Inertial`
+            A deep copy of the visual.
+        """
+        if mass is None:
+            mass = self.mass
+        if origin is None:
+            origin = self.origin.copy()
+        if inertia is None:
+            inertia = self.inertia.copy()
+        return Inertial(
+            mass=mass,
+            inertia=inertia,
+            origin=origin,
+        )
+
+
+
+###############################################################################
 # Joint types
 ###############################################################################
 
@@ -2588,26 +2710,21 @@ class Sensor(URDFType):
 
     _ATTRIBS = {
         "name": (str, True),
-        "resolution": (str, False),
-        "fov": (float, False),
-        "sensortype": (str, False),
     }
     _ELEMENTS = {
         "inertial": (Inertial, False, False),
         "visuals": (Visual, False, True),
         "collisions": (Collision, False, True),
+        "sensorSpecs": (SensorSpec, True, False),
     }
     _TAG = "sensor"
 
-    def __init__(self, name, inertial, visuals, collisions, resolution, fov, sensortype):
+    def __init__(self, name, inertial, visuals, collisions, sensorSpecs):
         self.name = name
         self.inertial = inertial
         self.visuals = visuals
         self.collisions = collisions
-        resolution = resolution.split(" ")
-        self.resolution = [int(resolution[0]), int(resolution[1])]
-        self.fov = fov
-        self.sensortype = sensortype
+        self.sensorSpec = sensorSpecs
 
         self._collision_mesh = None
 

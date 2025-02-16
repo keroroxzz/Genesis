@@ -78,11 +78,8 @@ def parse_urdf(morph, surface):
         l_info = l_infos[i]
         l_info["name"] = link.name
 
-        l_info["is_sensor"] = isinstance(link, urdfpy.Sensor)
-        if l_info["is_sensor"]:
-            l_info["resolution"] = link.resolution
-            l_info["fov"] = link.fov
-            l_info["sensortype"] = link.sensortype
+        if isinstance(link, urdfpy.Sensor):
+            l_info["sensor_spec"] = link.sensorSpec
 
         # we compute urdf's invweight later
         l_info["invweight"] = -1.0

@@ -4,15 +4,14 @@ import taichi as ti
 from .rigid_link import RigidLink
 from genesis.utils.geom import quat_to_xyz, transform_by_quat, inv_quat, transform_quat_by_quat
 
+from genesis.engine.sensors import *
 
 @ti.data_oriented
 class SensorLink(RigidLink):
     
     def __init__(
         self,
-        resolution,
-        fov,
-        type,
+        spec,
         scene,
         entity,
         name,
@@ -57,21 +56,10 @@ class SensorLink(RigidLink):
             invweight=invweight,
             visualize_contact=visualize_contact,
         )
-        self.scene = scene
-        self.cam = self.scene.add_camera(
-            res    = resolution,
-            pos    = (3.5, 0.0, 2.5),
-            lookat = (0, 0, 0.5),
-            fov    = fov,
-            GUI    = True
-        )
-        self.render_type = {'rgb':False, 'depth':False, 'segmentation':False, 'colorize_seg':False, 'normal':False}
-        self.render_type[type] = True
+        self.sensor = eval(spec.type)(scene, self, name, spec)
 
     def render(self):
-        radar_quat = self.get_quat()[0].cpu().numpy()
-        self.cam.set_pose(
-            pos = self.get_pos()[0].cpu().numpy(), 
-            lookat = transform_by_quat(np.asarray([1.0,0.0,0.0]), radar_quat),
-            up = transform_by_quat(np.asarray([0.0,0.0,1.0]), radar_quat))
-        self.cam.render(**self.render_type)
+        self.sensor.render()
+
+    def publish(self):
+        self.sensor.publish()

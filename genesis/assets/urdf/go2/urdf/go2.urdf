@@ -1185,7 +1185,11 @@ Stephen Brawner (brawner@gmail.com)
       xyz="0 0 0" />
   </joint>
   <sensor
-    name="radar" resolution="128 128" fov="60.0" sensortype="rgb">
+    name="radar" >
+    <sensor_spec type="Lidar" topic="radar" >
+      <resolution width="1600" height="1000" />
+      <fov hfov="180" vfov="120" />
+    </sensor_spec>
     <inertial>
       <origin
         xyz="0 0 0"

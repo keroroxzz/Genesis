@@ -407,11 +407,9 @@ class RigidEntity(Entity):
             self._add_by_info(l_info, j_info, l_info["g_infos"], morph, surface)
 
     def _add_by_info(self, l_info, j_info, g_infos, morph, surface):
-        if l_info["is_sensor"]:
+        if "sensor_spec" in l_info:
             link = self._add_sensor(
-                resolution=l_info["resolution"],
-                type=l_info["sensortype"],
-                fov=l_info["fov"],
+                spec=l_info["sensor_spec"],
                 name=l_info["name"],
                 pos=l_info["pos"],
                 quat=l_info["quat"],
@@ -547,9 +545,7 @@ class RigidEntity(Entity):
 
     def _add_sensor(
         self,
-        resolution,
-        type,
-        fov,
+        spec,
         name,
         pos,
         quat,
@@ -561,9 +557,7 @@ class RigidEntity(Entity):
         invweight,
     ):
         link = SensorLink(
-            resolution=resolution,
-            type=type,
-            fov=fov,
+            spec=spec,
             scene=self._scene,
             entity=self,
             name=name,
@@ -1501,6 +1495,10 @@ class RigidEntity(Entity):
     def render_sensors(self):
         for sensor in self._sensors:
             sensor.render()
+
+    def publish_sensors(self):
+        for sensor in self._sensors:
+            sensor.publish()
 
     def get_joint(self, name=None, uid=None):
         """
