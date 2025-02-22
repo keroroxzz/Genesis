@@ -9,6 +9,7 @@ ros2_tf_broadcaster = tf2.TransformBroadcaster(ros_node)
 
 # ros messages
 from sensor_msgs.msg import Image, CompressedImage, CameraInfo
+from sensor_msgs.msg import PointCloud2, PointField
 
 # ros2 cv bridge
 from cv_bridge import CvBridge, CvBridgeError

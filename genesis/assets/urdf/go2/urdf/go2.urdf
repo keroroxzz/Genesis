@@ -1187,8 +1187,8 @@ Stephen Brawner (brawner@gmail.com)
   <sensor
     name="radar" >
     <sensor_spec type="Lidar" topic="radar" >
-      <resolution width="1600" height="1000" />
-      <fov hfov="180" vfov="120" />
+      <resolution width="1200" height="16" />
+      <fov hfov="360" vfov="100" />
     </sensor_spec>
     <inertial>
       <origin

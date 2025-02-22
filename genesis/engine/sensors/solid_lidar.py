@@ -1,5 +1,5 @@
 import numpy as np
-from .sensor_base import BasicCamera, EquirectangularCamera
+from .sensor_base import BasicCamera, EquirectangularLidar
 from genesis.ext.urdfpy import SensorSpec
 import genesis.ext.ros2.ros_core as ROS
 
