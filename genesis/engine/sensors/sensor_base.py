@@ -77,15 +77,17 @@ def getFractalImagePoints(imagePts):
     fract, ints = np.modf(imagePts)
     return fract, ints.astype(np.int64)
 
-# @numba.jit(cache=True, nogil=True)
-def sampleImage(img, pixelPts, fract):
+@numba.jit(cache=True, nogil=True, nopython=True)
+def img2pts(img, pixelPts, fract, vecs):
     # sample the image by linear interpolation at the image points, [n, 2]
-    a = img[pixelPts[:,1],   pixelPts[:,0]]   * (1.0-fract[:,0])
-    b = img[pixelPts[:,1]+1, pixelPts[:,0]]   * fract[:,0]
-    c = img[pixelPts[:,1],   pixelPts[:,0]+1] * (1.0-fract[:,0])
-    d = img[pixelPts[:,1]+1, pixelPts[:,0]+1] * fract[:,0]
-    e = (a+b) * (1.0-fract[:,1]) + (c+d) * fract[:,1]
-    return e
+    ret = np.zeros((pixelPts.shape[0],1))
+    for i in range(pixelPts.shape[0]):
+        x, y = pixelPts[i]
+        rx, ry = fract[i]
+        a = img[y,   x]   * (1.0-rx) + img[y+1, x]   * rx
+        b = img[y,   x+1] * (1.0-rx) + img[y+1, x+1] * rx
+        ret[i,0] = (a * (1.0-ry) + b * ry)
+    return ret*vecs
 
 class EquirectangularLidar:
     CAMERA_COUNT = 4
@@ -141,7 +143,7 @@ class EquirectangularLidar:
             # project the lidar points to the image plane
             pts, vec = projectLidarPoints(lidarPoints, camera.extrinsics[:3,:], camera.intrinsics, widthPerCam, heightPerCam)
             fract, pixelPts = getFractalImagePoints(pts)
-            pixelPts[:,0] += i*widthPerCam
+            pixelPts[:,0] += (self.CAMERA_COUNT-1-i)*widthPerCam
 
             self.samplePixels.append(pixelPts)
             self.sampleFracts.append(fract)
@@ -165,14 +167,5 @@ class EquirectangularLidar:
                 up = up)
             img = self.cameras[i].render(**self.render_type_args)[self.render_index]
             imgs.append(img)
-        full_img = np.concatenate(imgs, axis=1)
-        # depths = sampleImage(full_img, self.samplePixels, self.sampleFracts)
-        depths = full_img[self.samplePixels[:,1], self.samplePixels[:,0]]
-        # points = depths[:,np.newaxis] * self.lidarVectors
-        return full_img, img2pts(depths, self.samplePixels, self.lidarVectors)
-    
-@numba.jit(nopython=True)
-def img2pts(depths: np.ndarray = np.array([[]]), pixs: np.ndarray = np.array([[]]), vecs: np.ndarray = np.array([[]])):
-        # depths = depth[pixs[:,1], pixs[:,0]]
-        points = depths[:,np.newaxis] * vecs
-        return points
+        full_img = np.concatenate(imgs[::-1], axis=1)
+        return img2pts(full_img, self.samplePixels, self.sampleFracts, self.lidarVectors)
